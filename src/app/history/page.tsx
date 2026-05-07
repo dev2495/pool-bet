@@ -85,8 +85,8 @@ export default function HistoryPage() {
         <header className="workspace-head">
           <div>
             <div className="label">Player history</div>
-            <h1 className="text-2xl font-bold tracking-tight">{data.user.name}</h1>
-            <p className="mt-1 text-sm text-muted">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{data.user.name}</h1>
+            <p className="mt-1 text-sm leading-6 text-muted">
               Code <span className="font-mono text-ink">{data.user.loginCode}</span> · current
               balance {data.user.chips.toLocaleString()} chips. Settled sessions reset back to 0.
             </p>
@@ -99,7 +99,7 @@ export default function HistoryPage() {
             </div>
           </div>
         </header>
-        <section className="grid sm:grid-cols-4 gap-3">
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Lifetime P/L" value={data.summary.pnl} signed positive={pnlPositive} />
           <Stat label="Total wagered" value={data.summary.staked} />
           <Stat label="Total returned" value={data.summary.returned} />
@@ -122,7 +122,7 @@ export default function HistoryPage() {
             </div>
             <div className="grid gap-2 lg:grid-cols-2">
               {cashLedger.slice(0, 10).map((t) => (
-                <div key={t.id} className="ledger-row flex items-center justify-between gap-3">
+                <div key={t.id} className="ledger-row flex items-start justify-between gap-3">
                   <div>
                     <div className="font-semibold text-sm">{t.type.replaceAll("_", " ")}</div>
                     <div className="text-xs text-muted">
@@ -156,7 +156,7 @@ export default function HistoryPage() {
                 <header className="flex flex-wrap items-center gap-3">
                   <h3 className="font-semibold">{g.sessionName}</h3>
                   <StatusPill status={g.sessionStatus} />
-                  <div className="ml-auto text-sm">
+                  <div className="ml-auto text-sm font-semibold">
                     <span className="text-muted">P/L: </span>
                     <span className={pnl >= 0 ? "text-win" : "text-loss"}>
                       {pnl >= 0 ? "+" : ""}
@@ -164,7 +164,7 @@ export default function HistoryPage() {
                     </span>
                   </div>
                 </header>
-                <div className="overflow-x-auto">
+                <div className="hidden overflow-x-auto md:block">
                 <table className="table min-w-[720px]">
                   <thead>
                     <tr>
@@ -198,7 +198,40 @@ export default function HistoryPage() {
                   </tbody>
                 </table>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-4">
+                <div className="space-y-2 md:hidden">
+                  {g.bets.map((b) => {
+                    const net = (b.payout || 0) - b.stake;
+                    return (
+                      <div key={b.id} className="ledger-row">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-bold leading-tight">{b.match.name}</div>
+                            <div className="mt-1 text-sm text-muted">{b.outcome.label}</div>
+                          </div>
+                          <StatusPill status={b.status} />
+                        </div>
+                        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <div className="kpi-label">Stake</div>
+                            <div className="font-mono font-bold">{b.stake.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div className="kpi-label">Payout</div>
+                            <div className="font-mono font-bold">{(b.payout || 0).toLocaleString()}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="kpi-label">Net</div>
+                            <div className={"font-mono font-bold " + (net > 0 ? "text-win" : net < 0 ? "text-loss" : "text-muted")}>
+                              {net > 0 ? "+" : ""}
+                              {net.toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <div className="ledger-row">
                     <div className="text-xs text-muted">Session staked</div>
                     <div className="font-mono font-bold">{g.staked.toLocaleString()}</div>
@@ -227,7 +260,7 @@ export default function HistoryPage() {
                   <div className="space-y-2">
                     <div className="label">Session ledger</div>
                     {g.ledger.slice(0, 6).map((t) => (
-                      <div key={t.id} className="ledger-row flex items-center justify-between gap-3">
+                      <div key={t.id} className="ledger-row flex items-start justify-between gap-3">
                         <div>
                           <div className="font-semibold text-sm">{t.type.replaceAll("_", " ")}</div>
                           <div className="text-xs text-muted">

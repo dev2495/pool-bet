@@ -16,6 +16,11 @@ type MatchRow = {
   id: string;
   name: string;
   description: string | null;
+  startsAt: string | null;
+  bettingOpensAt: string | null;
+  source: string | null;
+  homeCode: string | null;
+  awayCode: string | null;
   status: string;
   winningOutcomeId: string | null;
   betCount: number;
@@ -80,6 +85,7 @@ export default function AdminSessionDetail() {
   // create-match form
   const [mName, setMName] = useState("");
   const [mDesc, setMDesc] = useState("");
+  const [mStartsAt, setMStartsAt] = useState("");
   const [outA, setOutA] = useState("Team A");
   const [outB, setOutB] = useState("Team B");
   const [outC, setOutC] = useState("");
@@ -142,10 +148,11 @@ export default function AdminSessionDetail() {
     e.preventDefault();
     setAdding(true);
     const outcomes = [outA, outB, outC].map((s) => s.trim()).filter(Boolean);
+    const startsAtIso = mStartsAt ? new Date(mStartsAt).toISOString() : "";
     const r = await fetch("/api/admin/matches", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sessionId: id, name: mName, description: mDesc, outcomes }),
+      body: JSON.stringify({ sessionId: id, name: mName, description: mDesc, startsAt: startsAtIso, outcomes }),
     });
     const j = await r.json();
     setAdding(false);
@@ -155,6 +162,7 @@ export default function AdminSessionDetail() {
     }
     setMName("");
     setMDesc("");
+    setMStartsAt("");
     setOutC("");
     refresh();
   }
@@ -234,10 +242,10 @@ export default function AdminSessionDetail() {
           <div>
             <div className="label">Session control room</div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{s.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{s.name}</h1>
               <StatusPill status={s.status} />
             </div>
-            <p className="mt-1 text-sm text-muted">
+            <p className="mt-1 text-sm leading-6 text-muted">
               Run the round, watch pools, choose winners, and confirm player ledger payouts.
             </p>
           </div>
@@ -264,12 +272,12 @@ export default function AdminSessionDetail() {
           </div>
         </header>
 
-        <section className="card flex flex-wrap items-center gap-2">
+        <section className="card grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <button className={canOpen ? "btn-primary" : "btn"} disabled={!canOpen} onClick={() => transition("open")}>
-            1. Open (collect blind bets)
+            1. Open
           </button>
           <button className={canGoLive ? "btn-primary" : "btn"} disabled={!canGoLive} onClick={() => transition("live")}>
-            2. Reveal odds & go LIVE
+            2. Go live
           </button>
           <button className="btn" disabled={!canClose} onClick={() => transition("close")}>
             3. Close betting
@@ -277,7 +285,7 @@ export default function AdminSessionDetail() {
           <button className={canSettle ? "btn-primary" : "btn"} disabled={!canSettle} onClick={() => transition("settle")}>
             4. Settle session
           </button>
-          <p className="w-full text-xs text-muted mt-2">
+          <p className="col-span-2 mt-2 w-full text-xs leading-5 text-muted">
             DRAFT → OPEN → LIVE → CLOSED → SETTLED. While OPEN, players can place bets but cannot
             see odds. Once you go LIVE, odds become visible and update with every new bet.
           </p>
@@ -382,7 +390,19 @@ export default function AdminSessionDetail() {
                   onChange={(e) => setMDesc(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="label">Scheduled start (optional)</label>
+                <input
+                  className="input"
+                  type="datetime-local"
+                  value={mStartsAt}
+                  onChange={(e) => setMStartsAt(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted">
+                  If set, betting opens automatically 1 hour before this time.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
                 <input
                   className="input"
                   placeholder="Outcome 1"
@@ -404,7 +424,7 @@ export default function AdminSessionDetail() {
                   onChange={(e) => setOutC(e.target.value)}
                 />
               </div>
-              <button className="btn-primary" disabled={adding || !mName}>
+              <button className="btn-primary w-full sm:w-auto" disabled={adding || !mName}>
                 {adding ? "Adding…" : "Add match"}
               </button>
             </form>
@@ -434,9 +454,39 @@ export default function AdminSessionDetail() {
               <article key={m.id} className="card space-y-2">
                 <header className="flex items-start gap-2">
                   <div className="flex-1">
-                    <div className="font-medium">{m.name}</div>
+                    <div className="text-lg font-bold leading-tight">{m.name}</div>
                     {m.description && (
                       <div className="text-xs text-muted">{m.description}</div>
+                    )}
+                    {(m.startsAt || m.bettingOpensAt || m.source) && (
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold">
+                        {m.source && (
+                          <span className="rounded-full bg-panel2 px-2 py-1 text-muted">{m.source}</span>
+                        )}
+                        {m.startsAt && (
+                          <span className="rounded-full bg-panel2 px-2 py-1 text-muted">
+                            {new Date(m.startsAt).toLocaleString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              day: "2-digit",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                        {m.bettingOpensAt && (
+                          <span className="rounded-full bg-warn/10 px-2 py-1 text-warn">
+                            Bets open{" "}
+                            {new Date(m.bettingOpensAt).toLocaleString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              day: "2-digit",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <StatusPill status={m.status} />
@@ -449,14 +499,14 @@ export default function AdminSessionDetail() {
                       <div
                         key={o.id}
                         className={
-                          "flex items-center gap-2 rounded-md px-2 py-1.5 border " +
+                          "flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5 " +
                           (isWinner
                             ? "border-win/60 bg-win/10"
                             : "border-line/60 bg-panel2")
                         }
                       >
                         <div className="flex-1">
-                          <div className="text-sm">{o.label}</div>
+                          <div className="text-sm font-bold">{o.label}</div>
                           <div className="text-[11px] text-muted">
                             pool {o.poolChips.toLocaleString()} ·{" "}
                             {(o.share * 100).toFixed(1)}% · {o.betCount} bets
@@ -518,11 +568,11 @@ export default function AdminSessionDetail() {
                   )}
                 </div>
                 </div>
-                <footer className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 pt-3 text-xs text-muted">
                   <span>
                     {m.betCount} bets · pool {m.totalPool.toLocaleString()}
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:items-center sm:gap-1">
                     {m.status === "OPEN" && (
                       <button className="btn" onClick={() => closeMatch(m.id)}>
                         Close

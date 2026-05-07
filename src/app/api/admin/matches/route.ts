@@ -8,6 +8,7 @@ const Body = z.object({
   sessionId: z.string().min(1),
   name: z.string().min(1).max(140),
   description: z.string().max(500).optional(),
+  startsAt: z.string().datetime().optional().or(z.literal("")),
   outcomes: z.array(z.string().min(1).max(80)).min(2).max(10),
 });
 
@@ -15,7 +16,7 @@ const Body = z.object({
 export async function POST(req: NextRequest) {
   return handle(async () => {
     await requireAdmin();
-    const { sessionId, name, description, outcomes } = Body.parse(await req.json());
+    const { sessionId, name, description, startsAt: startsAtRaw, outcomes } = Body.parse(await req.json());
     const s = await prisma.session.findUnique({ where: { id: sessionId } });
     if (!s) return err("Session not found", 404);
     if (s.status !== "DRAFT" && s.status !== "OPEN")
@@ -23,12 +24,16 @@ export async function POST(req: NextRequest) {
 
     // Initial match status mirrors session state.
     const initialStatus = s.status === "OPEN" ? "OPEN" : "PENDING";
+    const startsAt = startsAtRaw ? new Date(startsAtRaw) : null;
+    const bettingOpensAt = startsAt ? new Date(startsAt.getTime() - 60 * 60 * 1000) : null;
 
     const match = await prisma.match.create({
       data: {
         sessionId,
         name,
         description,
+        startsAt,
+        bettingOpensAt,
         status: initialStatus,
         outcomes: { create: outcomes.map((label) => ({ label })) },
       },

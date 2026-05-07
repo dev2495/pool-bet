@@ -10,4 +10,6 @@ dist
 .turbo
 *.tsbuildinfo
 .playwright-mcp
+.uv-cache
+output/imagegen
 prisma/migrations/**/migration_lock.toml

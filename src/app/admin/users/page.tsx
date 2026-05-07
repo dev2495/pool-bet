@@ -154,12 +154,13 @@ export default function AdminUsers() {
 
   return (
     <div>
-      <Nav active="admin" />
+      <Nav active="users" />
       <main className="page-shell app-fade-in">
         <header className="workspace-head">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Player bank</h1>
-            <p className="mt-1 text-sm text-muted">
+            <div className="label">Admin player bank</div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Player chips and settlements</h1>
+            <p className="mt-1 text-sm leading-6 text-muted">
               New codes start at 0. Pay chips in, settle player payouts, and reset balances cleanly.
             </p>
           </div>
@@ -186,7 +187,7 @@ export default function AdminUsers() {
               onChange={(e) => setPhone(e.target.value)}
               required
             />
-            <button className="btn-primary" disabled={creating || !name || !phone}>
+            <button className="btn-primary w-full" disabled={creating || !name || !phone}>
               {creating ? "Creating…" : "Create code at 0"}
             </button>
           </form>
@@ -212,7 +213,7 @@ export default function AdminUsers() {
             <span className="text-xs text-muted">Click a row for code-wise ledger history.</span>
           </div>
           {loading && <p className="text-muted">Loading…</p>}
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
           <table className="table min-w-[760px]">
             <thead>
               <tr>
@@ -260,15 +261,57 @@ export default function AdminUsers() {
             </tbody>
           </table>
           </div>
+          <div className="space-y-3 md:hidden">
+            {users.map((u) => (
+              <article key={u.id} className="ledger-row" onClick={() => openLedger(u)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-base font-bold">{u.name}</div>
+                    <div className="mt-1 text-xs text-muted">
+                      {u.phone} · code <span className="font-mono text-ink">{u.loginCode}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="kpi-label">Chips</div>
+                    <div className="font-mono text-xl font-bold">{u.chips.toLocaleString()}</div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => adjustChips(u.id, 100)} className="btn-primary">
+                    Pay in 100
+                  </button>
+                  <button onClick={() => adjustChips(u.id, 1000)} className="btn">
+                    Pay in 1k
+                  </button>
+                  <button onClick={() => customAdjust(u.id)} className="btn">
+                    Custom
+                  </button>
+                  <button onClick={() => settlePlayer(u)} className="btn-danger" disabled={u.chips <= 0}>
+                    Settle {u.chips > 0 ? u.chips.toLocaleString() : ""}
+                  </button>
+                </div>
+                <button
+                  className="mt-2 w-full rounded-md bg-panel2 px-3 py-2 text-sm font-bold text-ink"
+                  type="button"
+                >
+                  Open ledger
+                </button>
+              </article>
+            ))}
+            {users.length === 0 && !loading && (
+              <div className="py-4 text-center text-sm text-muted">No players yet.</div>
+            )}
+          </div>
         </section>
       </main>
       {selected && (
-        <div className="fixed inset-0 z-30 bg-bg/80 backdrop-blur-sm" onClick={() => setSelected(null)}>
+        <div className="fixed inset-0 z-40 flex items-end bg-ink/28 backdrop-blur-sm sm:block" onClick={() => setSelected(null)}>
           <aside
-            className="ml-auto h-full w-full max-w-xl overflow-y-auto border-l border-line bg-panel p-5 shadow-2xl app-fade-in"
+            className="mobile-sheet ml-auto w-full sm:h-full sm:max-w-xl sm:rounded-none sm:border-l sm:border-t-0 sm:p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-5 flex items-start justify-between gap-3">
+            <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-line sm:hidden" />
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="label">Player ledger</div>
                 <h2 className="text-xl font-bold">{selected.name}</h2>
@@ -277,7 +320,7 @@ export default function AdminUsers() {
                   {selected.chips.toLocaleString()} chips now
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <button
                   className="btn-danger"
                   onClick={() => settlePlayer(selected)}
@@ -309,7 +352,7 @@ export default function AdminUsers() {
             <div className="space-y-2">
               {ledger.map((t) => (
                 <div key={t.id} className="ledger-row">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-semibold">{t.type.replaceAll("_", " ")}</div>
                       <div className="text-xs text-muted">

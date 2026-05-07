@@ -61,6 +61,11 @@ export async function GET() {
             name: m.name,
             description: m.description,
             status: m.status,
+            startsAt: m.startsAt,
+            bettingOpensAt: m.bettingOpensAt,
+            source: m.source,
+            homeCode: m.homeCode,
+            awayCode: m.awayCode,
             winningOutcomeId: m.winningOutcomeId,
             betCount: m._count.bets,
             // Hide pool sizes and odds when session is OPEN (pre-reveal).

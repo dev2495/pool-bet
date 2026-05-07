@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html, body {
   background:
-    radial-gradient(circle at 10% -8%, rgba(56, 232, 255, 0.2), transparent 26rem),
-    radial-gradient(circle at 88% 0%, rgba(34, 197, 94, 0.14), transparent 26rem),
-    linear-gradient(135deg, #071626 0%, #0c2f43 42%, #071827 100%);
-  color: #e6ebf5;
+    radial-gradient(circle at 12% -10%, rgba(96, 196, 255, 0.34), transparent 24rem),
+    radial-gradient(circle at 92% 0%, rgba(255, 78, 69, 0.13), transparent 24rem),
+    linear-gradient(180deg, #f7fbff 0%, #eef7ff 45%, #f8fbff 100%);
+  color: #071b35;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     "Noto Sans", sans-serif;
 }
@@ -20,38 +20,42 @@ html, body {
   min-width: 0;
 }
 
+body {
+  min-height: 100svh;
+}
+
 ::selection {
-  background: rgba(93, 214, 246, 0.28);
+  background: rgba(255, 78, 69, 0.2);
 }
 
 @layer components {
   .btn {
-    @apply inline-flex min-h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-semibold
-      bg-white/10 border border-white/15 text-ink hover:border-accent/60 hover:bg-white/20 transition disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3.5 py-2.5 text-sm font-semibold
+      bg-white border border-line text-ink shadow-sm hover:border-accent/50 hover:bg-panel2 transition disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply inline-flex min-h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-bold
-      bg-accent text-bg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_0_1px_rgba(56,232,255,0.35),0_14px_34px_rgba(56,232,255,0.22)];
+    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3.5 py-2.5 text-sm font-bold
+      bg-accent text-white hover:brightness-95 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_12px_28px_rgba(255,78,69,0.24)];
   }
   .btn-danger {
-    @apply inline-flex min-h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-semibold
-      bg-loss/15 border border-loss/35 text-loss hover:bg-loss/25 transition disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3.5 py-2.5 text-sm font-semibold
+      bg-loss/10 border border-loss/30 text-loss hover:bg-loss/15 transition disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .input {
-    @apply block w-full min-h-9 rounded-md bg-white/10 border border-white/15 px-3 py-2 text-sm text-ink placeholder:text-muted
+    @apply block w-full min-h-11 rounded-md bg-white border border-line px-3.5 py-2.5 text-base text-ink placeholder:text-muted shadow-sm
       focus:outline-none focus:ring-2 focus:ring-accent/70 focus:border-accent/70 transition;
   }
   .label {
-    @apply block text-[11px] uppercase tracking-[0.14em] text-muted mb-1 font-semibold;
+    @apply block text-[11px] uppercase tracking-[0.12em] text-muted mb-1 font-bold;
   }
   .card {
-    @apply rounded-lg bg-white/10 border border-white/15 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl;
+    @apply rounded-lg bg-panel border border-line/80 p-4 shadow-[0_18px_46px_rgba(38,71,102,0.10)];
   }
   .card-tight {
-    @apply rounded-lg bg-white/10 border border-white/15 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl;
+    @apply rounded-lg bg-panel border border-line/80 p-3 shadow-[0_12px_32px_rgba(38,71,102,0.08)];
   }
   .pill {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide;
+    @apply inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide;
   }
   .chip-num {
     @apply tabular-nums;
@@ -60,31 +64,40 @@ html, body {
     @apply w-full text-sm border-collapse;
   }
   .table th {
-    @apply text-left text-[11px] uppercase tracking-[0.14em] text-muted font-semibold px-3 py-2 border-b border-line;
+    @apply text-left text-[11px] uppercase tracking-[0.12em] text-muted font-bold px-3 py-2 border-b border-line;
   }
   .table td {
     @apply px-3 py-2 border-b border-line/60 align-middle;
   }
   .table tbody tr {
-    @apply hover:bg-white/10 transition;
+    @apply hover:bg-panel2 transition;
   }
   .page-shell {
-    @apply max-w-6xl mx-auto px-4 py-6 space-y-6;
+    @apply max-w-6xl mx-auto px-3 pb-28 pt-4 space-y-5 sm:px-4 sm:py-6;
   }
   .workspace-head {
-    @apply flex flex-wrap items-start justify-between gap-4 rounded-lg border border-white/15 bg-white/10 px-4 py-4 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl;
+    @apply flex flex-wrap items-start justify-between gap-4 rounded-lg border border-line/80 bg-white/[0.92] px-4 py-4 shadow-[0_18px_46px_rgba(38,71,102,0.10)] backdrop-blur-xl;
   }
   .kpi {
-    @apply rounded-lg border border-white/15 bg-white/10 p-4 backdrop-blur-xl;
+    @apply rounded-lg border border-line/80 bg-panel p-4 shadow-[0_12px_32px_rgba(38,71,102,0.08)];
   }
   .kpi-label {
-    @apply text-[11px] uppercase tracking-[0.14em] text-muted font-semibold;
+    @apply text-[11px] uppercase tracking-[0.12em] text-muted font-bold;
   }
   .kpi-value {
     @apply mt-2 text-2xl font-bold tabular-nums text-ink;
   }
   .ledger-row {
-    @apply rounded-md border border-white/15 bg-white/10 px-3 py-2 transition hover:border-accent/70 hover:bg-white/20;
+    @apply rounded-md border border-line/75 bg-white px-3 py-3 transition hover:border-accent/50 hover:bg-panel2;
+  }
+  .glass-rail {
+    @apply border border-white/80 bg-white/[0.82] shadow-[0_18px_48px_rgba(38,71,102,0.16)] backdrop-blur-2xl;
+  }
+  .mobile-sheet {
+    @apply fixed inset-x-0 bottom-0 z-40 max-h-[88svh] overflow-y-auto rounded-t-lg border-t border-line bg-white p-4 shadow-[0_-18px_60px_rgba(38,71,102,0.22)] sm:inset-auto sm:relative sm:max-h-none sm:rounded-lg sm:border;
+  }
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
   .app-fade-in {
     animation: appFadeIn 360ms ease-out both;

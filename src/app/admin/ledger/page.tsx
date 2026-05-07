@@ -62,13 +62,13 @@ export default function AdminLedgerPage() {
 
   return (
     <div>
-      <Nav active="admin" />
+      <Nav active="ledger" />
       <main className="page-shell app-fade-in">
         <header className="workspace-head">
           <div>
             <div className="label">Global ledger</div>
-            <h1 className="text-2xl font-bold tracking-tight">Players, house rake, reconciliation</h1>
-            <p className="mt-1 text-sm text-muted">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Players, house rake, reconciliation</h1>
+            <p className="mt-1 text-sm leading-6 text-muted">
               Every chip movement is visible here. Player balances must match player ledger totals.
             </p>
           </div>
@@ -81,7 +81,7 @@ export default function AdminLedgerPage() {
         {err && <p className="text-loss">{err}</p>}
         {data && (
           <>
-            <section className="grid gap-3 sm:grid-cols-4">
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Player ledger total" value={data.totals.playerTxnTotal} signed />
               <Stat label="Current chips in play" value={data.totals.playerBalanceTotal} />
               <Stat label="House rake ledger" value={data.totals.houseTotal} />
@@ -102,7 +102,7 @@ export default function AdminLedgerPage() {
                 <div className="max-h-[640px] overflow-y-auto space-y-2 pr-1">
                   {data.playerLedger.map((t) => (
                     <div key={t.id} className="ledger-row">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold">
                             {t.userName} <span className="font-mono text-xs text-muted">{t.loginCode}</span>
@@ -134,7 +134,7 @@ export default function AdminLedgerPage() {
                 <div className="max-h-[640px] overflow-y-auto space-y-2 pr-1">
                   {data.houseLedger.map((h) => (
                     <div key={h.id} className="ledger-row">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold">{h.matchName || h.sessionName}</div>
                           <div className="text-xs text-muted">

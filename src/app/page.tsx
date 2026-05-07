@@ -36,15 +36,15 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen grid place-items-center px-4 app-fade-in">
+    <main className="min-h-screen grid place-items-center px-4 py-8 app-fade-in">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-3xl font-bold tracking-tight">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-accent shadow-[0_0_20px_rgba(93,214,246,0.8)]" />
+            <span className="inline-block h-10 w-10 rounded-full bg-gradient-to-br from-[#0a5cc8] to-[#073b83] shadow-sm" />
             Pool&#8209;Bet
           </div>
-          <p className="text-muted text-sm mt-1">
-            Pari-mutuel betting amongst friends. Chips only.
+          <p className="text-muted text-sm mt-2">
+            Sign in with your player code. Chips only.
           </p>
         </div>
         <form onSubmit={submit} className="card space-y-4">

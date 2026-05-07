@@ -98,12 +98,12 @@ export default function AdminHome() {
             <header className="workspace-head">
               <div>
                 <div className="label">Admin control room</div>
-                <h1 className="text-2xl font-bold tracking-tight">Pool, rake, players, sessions</h1>
-                <p className="mt-1 text-sm text-muted">
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Pool, rake, players, sessions</h1>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Create sessions, monitor chip exposure, and jump into settlement control.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
                 <Link href="/admin/users" className="btn-primary">
                   Player bank
                 </Link>
@@ -112,7 +112,7 @@ export default function AdminHome() {
                 </Link>
               </div>
             </header>
-            <section className="grid sm:grid-cols-4 gap-3">
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Players" value={stats.totals.users} />
               <Stat label="Chips in play" value={stats.totals.chipsInCirculation} />
               <Stat label="Bets placed" value={stats.totals.totalBets} />
@@ -129,9 +129,9 @@ export default function AdminHome() {
                   <span className="text-xs text-muted">Newest first</span>
                 </div>
                 <form onSubmit={createSession} className="space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid gap-2 sm:grid-cols-3">
                     <input
-                      className="input col-span-2"
+                      className="input sm:col-span-2"
                       placeholder="Session name (e.g. Friday Night)"
                       value={sName}
                       onChange={(e) => setSName(e.target.value)}
@@ -150,7 +150,7 @@ export default function AdminHome() {
                       <span className="text-muted text-xs">%</span>
                     </div>
                   </div>
-                  <button className="btn-primary" disabled={creating || !sName}>
+                  <button className="btn-primary w-full sm:w-auto" disabled={creating || !sName}>
                     {creating ? "Creating…" : "Create session"}
                   </button>
                 </form>
@@ -187,7 +187,7 @@ export default function AdminHome() {
                     Manage all →
                   </Link>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden overflow-x-auto md:block">
                 <table className="table min-w-[520px]">
                   <thead>
                     <tr>
@@ -223,6 +223,32 @@ export default function AdminHome() {
                     )}
                   </tbody>
                 </table>
+                </div>
+                <div className="space-y-2 md:hidden">
+                  {stats.leaderboard.slice(0, 8).map((u) => (
+                    <div key={u.id} className="ledger-row">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-bold">{u.name}</div>
+                          <div className="mt-1 font-mono text-xs text-muted">{u.loginCode}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="kpi-label">Chips</div>
+                          <div className="font-mono font-bold">{u.chips.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-sm">
+                        <span className="text-muted">{u.bets} bets</span>
+                        <span className={u.pnl > 0 ? "text-win" : u.pnl < 0 ? "text-loss" : "text-muted"}>
+                          {u.pnl > 0 ? "+" : ""}
+                          {u.pnl.toLocaleString()} P/L
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {stats.leaderboard.length === 0 && (
+                    <div className="py-2 text-center text-sm text-muted">No players yet.</div>
+                  )}
                 </div>
               </div>
             </section>

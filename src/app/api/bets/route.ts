@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { handle, ok } from "@/lib/api";
+import { ApiError, handle, ok } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -24,22 +24,31 @@ export async function POST(req: NextRequest) {
         where: { id: matchId },
         include: { outcomes: true, session: true },
       });
-      if (!match) throw new Error("Match not found");
-      if (match.status !== "OPEN") throw new Error("Match is not accepting bets");
+      if (!match) throw new ApiError("Match not found", 404);
+      if (match.status !== "OPEN") throw new ApiError("Match is not accepting bets");
+      if (match.bettingOpensAt && match.bettingOpensAt.getTime() > Date.now()) {
+        throw new ApiError(
+          `Betting opens at ${match.bettingOpensAt.toLocaleString("en-IN", {
+            timeZone: "Asia/Kolkata",
+            dateStyle: "medium",
+            timeStyle: "short",
+          })} IST`
+        );
+      }
       const sessionStatus = match.session.status;
       if (sessionStatus !== "OPEN" && sessionStatus !== "LIVE")
-        throw new Error("Session is not accepting bets");
+        throw new ApiError("Session is not accepting bets");
       const outcome = match.outcomes.find((o) => o.id === outcomeId);
-      if (!outcome) throw new Error("Outcome does not belong to this match");
+      if (!outcome) throw new ApiError("Outcome does not belong to this match");
 
       const debit = await tx.user.updateMany({
         where: { id: user.id, chips: { gte: stake } },
         data: { chips: { decrement: stake } },
       });
-      if (debit.count !== 1) throw new Error("Not enough chips");
+      if (debit.count !== 1) throw new ApiError("Not enough chips");
 
       const updatedUser = await tx.user.findUnique({ where: { id: user.id } });
-      if (!updatedUser) throw new Error("User missing");
+      if (!updatedUser) throw new ApiError("User missing", 404);
 
       // Create the bet
       const bet = await tx.bet.create({

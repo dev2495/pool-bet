@@ -27,11 +27,11 @@ export default function AdminLogin() {
   }
 
   return (
-    <main className="min-h-screen grid place-items-center px-4 app-fade-in">
+    <main className="min-h-screen grid place-items-center px-4 py-8 app-fade-in">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4">
         <header>
           <div className="label">Admin desk</div>
-          <div className="text-xl font-bold tracking-tight">Sign in</div>
+          <div className="text-2xl font-bold tracking-tight">Sign in</div>
           <p className="mt-1 text-xs text-muted">Manage sessions, players, and settlement ledger.</p>
         </header>
         <div>

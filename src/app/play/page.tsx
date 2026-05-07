@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Nav from "@/components/Nav";
 import StatusPill from "@/components/StatusPill";
+import { teamShort } from "@/lib/ipl";
 
 type Outcome = {
   id: string;
@@ -16,6 +17,11 @@ type Match = {
   name: string;
   description: string | null;
   status: string;
+  startsAt: string | null;
+  bettingOpensAt: string | null;
+  source: string | null;
+  homeCode: string | null;
+  awayCode: string | null;
   winningOutcomeId: string | null;
   betCount: number;
   totalPool: number | null;
@@ -83,38 +89,47 @@ export default function PlayPage() {
       <main className="page-shell app-fade-in">
         {loading && <p className="text-muted">Loading…</p>}
         {!loading && sessions.length === 0 && (
-          <div className="card text-center text-muted">
-            No active sessions yet. Wait for the admin to open one.
+          <div className="card py-8 text-center text-muted">
+            <div className="text-lg font-bold text-ink">No live pools yet</div>
+            <p className="mt-1 text-sm">Wait for the admin to open a session.</p>
           </div>
         )}
 
         {!loading && me && (
-          <header className="workspace-head">
+          <header className="workspace-head overflow-hidden">
             <div>
               <div className="label">Player board</div>
-              <h1 className="text-2xl font-bold tracking-tight">Live pools</h1>
-              <p className="mt-1 text-sm text-muted">
-                {me.name} · balance{" "}
-                <span className="font-mono text-ink">{me.chips.toLocaleString()}</span> chips.
-                Odds update as players add to the pool.
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Live pools</h1>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                {me.name} · current chips{" "}
+                <span className="font-mono font-bold text-ink">{me.chips.toLocaleString()}</span>.
+                Pick a side and confirm your stake.
               </p>
             </div>
-            <div className="rounded-md border border-line bg-panel2 px-3 py-2 text-right">
-              <div className="kpi-label">Open sessions</div>
-              <div className="text-2xl font-bold tabular-nums">{sessions.length}</div>
+            <div className="grid min-w-[9rem] grid-cols-2 gap-2 sm:block sm:text-right">
+              <div className="rounded-md border border-line bg-panel2 px-3 py-2">
+                <div className="kpi-label">Chips</div>
+                <div className="text-xl font-bold tabular-nums">{me.chips.toLocaleString()}</div>
+              </div>
+              <div className="rounded-md border border-line bg-panel2 px-3 py-2 sm:mt-2">
+                <div className="kpi-label">Pools</div>
+                <div className="text-xl font-bold tabular-nums">{sessions.length}</div>
+              </div>
             </div>
           </header>
         )}
 
         {sessions.map((s) => (
           <section key={s.id} className="space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-bold tracking-tight">{s.name}</h2>
               <StatusPill status={s.status} />
-              <span className="text-xs text-muted">Rake: {(s.rakeBps / 100).toFixed(2)}%</span>
+              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-muted shadow-sm">
+                Rake {(s.rakeBps / 100).toFixed(2)}%
+              </span>
               {s.status === "OPEN" && (
-                <span className="text-xs text-warn">
-                  · odds hidden — place blind bets, odds reveal when admin starts the round
+                <span className="rounded-full bg-warn/10 px-2 py-1 text-xs font-semibold text-warn">
+                  Odds hidden until live
                 </span>
               )}
             </div>
@@ -125,11 +140,15 @@ export default function PlayPage() {
               {s.matches.map((m) => (
                 <article key={m.id} className="card space-y-3">
                   <header className="flex items-start gap-2">
+                    {(m.homeCode || m.awayCode) && (
+                      <TeamPair homeCode={m.homeCode} awayCode={m.awayCode} />
+                    )}
                     <div className="flex-1">
-                      <div className="font-medium">{m.name}</div>
+                      <div className="text-lg font-bold leading-tight">{m.name}</div>
                       {m.description && (
-                        <div className="text-xs text-muted">{m.description}</div>
+                        <div className="mt-1 text-xs text-muted">{m.description}</div>
                       )}
+                      <MatchTiming startsAt={m.startsAt} bettingOpensAt={m.bettingOpensAt} />
                     </div>
                     <StatusPill status={m.status} />
                   </header>
@@ -140,8 +159,12 @@ export default function PlayPage() {
                         .filter((b) => b.outcomeId === o.id)
                         .reduce((s, b) => s + b.stake, 0);
                       const winnerHere = m.winningOutcomeId === o.id;
+                      const bettingLocked =
+                        !!m.bettingOpensAt && new Date(m.bettingOpensAt).getTime() > Date.now();
                       const canBet =
-                        m.status === "OPEN" && (s.status === "OPEN" || s.status === "LIVE");
+                        m.status === "OPEN" &&
+                        !bettingLocked &&
+                        (s.status === "OPEN" || s.status === "LIVE");
                       return (
                         <button
                           key={o.id}
@@ -150,19 +173,19 @@ export default function PlayPage() {
                           }
                           disabled={!canBet}
                           className={
-                            "w-full text-left rounded-md border px-3 py-2.5 transition " +
+                            "w-full rounded-md border px-3 py-3.5 text-left transition " +
                             (winnerHere
                               ? "border-win/60 bg-win/10"
                               : canBet
-                              ? "border-line bg-panel2 hover:border-accent/70 hover:bg-accent/5"
+                              ? "border-line bg-white hover:border-accent/70 hover:bg-panel2"
                               : "border-line bg-panel2 opacity-70 cursor-not-allowed")
                           }
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <div className="font-semibold">{o.label}</div>
+                              <div className="font-bold">{o.label}</div>
                               {myStake > 0 && (
-                                <div className="text-xs text-accent">
+                                <div className="mt-1 text-xs font-semibold text-accent">
                                   You: {myStake.toLocaleString()} chips
                                 </div>
                               )}
@@ -178,7 +201,7 @@ export default function PlayPage() {
                                 </div>
                               )}
                               {o.poolChips != null && (
-                                <div className="text-[10px] text-muted">
+                                <div className="text-[11px] text-muted">
                                   pool {o.poolChips.toLocaleString()} · {o.betCount} bet
                                   {o.betCount === 1 ? "" : "s"}
                                 </div>
@@ -190,8 +213,13 @@ export default function PlayPage() {
                     })}
                   </div>
 
-                  <footer className="flex items-center justify-between text-xs text-muted">
-                    <span>{m.betCount} bets total</span>
+                  <footer className="flex items-center justify-between gap-3 border-t border-line/70 pt-3 text-xs text-muted">
+                    <span>
+                      {m.betCount} bets total
+                      {m.bettingOpensAt && new Date(m.bettingOpensAt).getTime() > Date.now()
+                        ? " · locked"
+                        : ""}
+                    </span>
                     {m.totalPool != null && (
                       <span>pool {m.totalPool.toLocaleString()} chips</span>
                     )}
@@ -231,6 +259,94 @@ export default function PlayPage() {
   );
 }
 
+function TeamPair({
+  homeCode,
+  awayCode,
+}: {
+  homeCode: string | null;
+  awayCode: string | null;
+}) {
+  return (
+    <div className="flex shrink-0 -space-x-2 pt-0.5">
+      <TeamBadge code={homeCode} />
+      <TeamBadge code={awayCode} />
+    </div>
+  );
+}
+
+function TeamBadge({ code }: { code: string | null }) {
+  return (
+    <div
+      className={
+        "grid h-11 w-11 place-items-center rounded-full border-2 border-white text-[11px] font-black text-white shadow-sm " +
+        teamBadgeClass(code)
+      }
+    >
+      {teamShort(code)}
+    </div>
+  );
+}
+
+function teamBadgeClass(code: string | null) {
+  switch (code) {
+    case "CSK":
+      return "bg-gradient-to-br from-[#ffe55c] to-[#f5b51b] text-ink";
+    case "DC":
+      return "bg-gradient-to-br from-[#1f74d4] to-[#e42f3a]";
+    case "GT":
+      return "bg-gradient-to-br from-[#101d3b] to-[#c7a253]";
+    case "KKR":
+      return "bg-gradient-to-br from-[#34105f] to-[#d5a332]";
+    case "LSG":
+      return "bg-gradient-to-br from-[#29a9e8] to-[#ef7d22]";
+    case "MI":
+      return "bg-gradient-to-br from-[#005da8] to-[#19a8e0]";
+    case "PBKS":
+      return "bg-gradient-to-br from-[#d71920] to-[#f4b2b2]";
+    case "RR":
+      return "bg-gradient-to-br from-[#e91e8f] to-[#234aa8]";
+    case "RCB":
+      return "bg-gradient-to-br from-[#d71920] to-[#111827]";
+    case "SRH":
+      return "bg-gradient-to-br from-[#f97316] to-[#111827]";
+    default:
+      return "bg-gradient-to-br from-slate-500 to-slate-800";
+  }
+}
+
+function MatchTiming({
+  startsAt,
+  bettingOpensAt,
+}: {
+  startsAt: string | null;
+  bettingOpensAt: string | null;
+}) {
+  if (!startsAt && !bettingOpensAt) return null;
+  const start = startsAt ? formatIst(startsAt) : null;
+  const open = bettingOpensAt ? formatIst(bettingOpensAt) : null;
+  const locked = bettingOpensAt ? new Date(bettingOpensAt).getTime() > Date.now() : false;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold">
+      {start && <span className="rounded-full bg-panel2 px-2 py-1 text-muted">{start}</span>}
+      {open && (
+        <span className={"rounded-full px-2 py-1 " + (locked ? "bg-warn/10 text-warn" : "bg-win/10 text-win")}>
+          {locked ? `Bets open ${open}` : "Betting open"}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function formatIst(value: string) {
+  return new Date(value).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function BetModal({
   onClose,
   stake,
@@ -253,13 +369,15 @@ function BetModal({
   const projected =
     context?.odds && stake > 0 ? Math.floor(stake * context.odds) : null;
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-bg/80 backdrop-blur p-4" onClick={onClose}>
-      <div className="card max-w-sm w-full space-y-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-40 flex items-end bg-ink/28 backdrop-blur-sm sm:grid sm:place-items-center sm:p-4" onClick={onClose}>
+      <div className="mobile-sheet w-full space-y-4 sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto h-1 w-12 rounded-full bg-line sm:hidden" />
         <header>
-          <div className="text-xs text-muted">Place bet</div>
+          <div className="label">Place bet</div>
           {context && (
-            <div className="font-medium">
-              {context.match} → <span className="text-accent">{context.outcome}</span>
+            <div className="text-lg font-bold leading-tight">
+              {context.match} <span className="text-muted">/</span>{" "}
+              <span className="text-accent">{context.outcome}</span>
             </div>
           )}
         </header>
@@ -279,7 +397,7 @@ function BetModal({
             <button
               type="button"
               onClick={() => setStake(chips)}
-              className="text-accent hover:underline"
+              className="font-bold text-accent hover:underline"
             >
               All-in
             </button>
@@ -298,8 +416,8 @@ function BetModal({
           </div>
         )}
         {error && <p className="text-loss text-sm">{error}</p>}
-        <div className="grid grid-cols-3 gap-2">
-          {[50, 100, 250].map((n) => (
+        <div className="grid grid-cols-4 gap-2">
+          {[25, 50, 100, 250].map((n) => (
             <button
               type="button"
               key={n}
@@ -310,7 +428,7 @@ function BetModal({
             </button>
           ))}
         </div>
-        <div className="flex items-center justify-end gap-2">
+        <div className="grid grid-cols-[0.8fr_1.2fr] gap-2">
           <button onClick={onClose} className="btn">
             Cancel
           </button>
@@ -319,7 +437,7 @@ function BetModal({
             disabled={placing || stake <= 0 || stake > chips}
             className="btn-primary"
           >
-            {placing ? "Placing…" : `Place ${stake.toLocaleString()} chip bet`}
+            {placing ? "Placing…" : `Place ${stake.toLocaleString() || 0}`}
           </button>
         </div>
       </div>
