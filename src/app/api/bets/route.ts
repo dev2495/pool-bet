@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const Body = z.object({
   matchId: z.string().min(1),
   outcomeId: z.string().min(1),
-  stake: z.number().int().positive().max(10_000_000),
+  stake: z.number().int().min(50, "Minimum bet is 50 chips").max(10_000_000),
 });
 
 // POST /api/bets — place a bet. Allowed when the match is OPEN (hidden odds) or

@@ -64,7 +64,10 @@ export default function PlayPage() {
   }, []);
 
   async function placeBet() {
-    if (!picking || stake <= 0) return;
+    if (!picking || stake < 50 || !Number.isInteger(stake)) {
+      setError("Minimum bet is 50 chips. Use whole chips only.");
+      return;
+    }
     setPlacing(true);
     setError(null);
     const res = await fetch("/api/bets", {
@@ -383,14 +386,18 @@ function BetModal({
           <input
             autoFocus
             type="number"
-            min={1}
+            min={50}
+            step={1}
             max={chips}
             className="input"
             value={stake || ""}
-            onChange={(e) => setStake(parseInt(e.target.value || "0", 10))}
+            onChange={(e) => {
+              const next = e.target.value === "" ? 0 : Number(e.target.value);
+              setStake(Number.isFinite(next) ? next : 0);
+            }}
           />
-          <div className="flex items-center justify-between text-xs text-muted mt-1">
-            <span>Balance: {chips.toLocaleString()} chips</span>
+        <div className="flex items-center justify-between text-xs text-muted mt-1">
+            <span>Balance: {chips.toLocaleString()} chips · minimum 50</span>
             <button
               type="button"
               onClick={() => setStake(chips)}
@@ -415,12 +422,7 @@ function BetModal({
         {error && <p className="text-loss text-sm">{error}</p>}
         <div className="grid grid-cols-4 gap-2">
           {[25, 50, 100, 250].map((n) => (
-            <button
-              type="button"
-              key={n}
-              onClick={() => setStake(Math.min(chips, n))}
-              className="btn"
-            >
+            <button type="button" key={n} onClick={() => setStake(Math.min(chips, n))} className="btn">
               {n}
             </button>
           ))}
@@ -431,7 +433,7 @@ function BetModal({
           </button>
           <button
             onClick={onPlace}
-            disabled={placing || stake <= 0 || stake > chips}
+            disabled={placing || stake < 50 || !Number.isInteger(stake) || stake > chips}
             className="btn-primary"
           >
             {placing ? "Placing…" : `Place ${stake.toLocaleString() || 0}`}
