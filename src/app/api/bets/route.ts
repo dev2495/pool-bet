@@ -12,8 +12,8 @@ const Body = z.object({
   stake: z.number().int().positive().max(10_000_000),
 });
 
-// POST /api/bets — place a bet. Allowed when the match is OPEN AND its session
-// is OPEN or LIVE.
+// POST /api/bets — place a bet. Allowed when the match is OPEN (hidden odds) or
+// LIVE (visible odds), and its match group is active.
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const user = await requireUser();
@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
         include: { outcomes: true, session: true },
       });
       if (!match) throw new ApiError("Match not found", 404);
-      if (match.status !== "OPEN") throw new ApiError("Match is not accepting bets");
+      if (match.status !== "OPEN" && match.status !== "LIVE")
+        throw new ApiError("Match is not accepting bets");
       if (match.bettingOpensAt && match.bettingOpensAt.getTime() > Date.now()) {
         throw new ApiError(
           `Betting opens at ${match.bettingOpensAt.toLocaleString("en-IN", {

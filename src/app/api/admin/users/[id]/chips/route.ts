@@ -25,6 +25,18 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
         const current = await tx.user.findUnique({ where: { id: userId } });
         if (!current) throw new Error("User not found");
         if (current.chips <= 0) throw new Error("Player has no chips to settle");
+        const activeBets = await tx.bet.count({
+          where: {
+            userId,
+            status: "ACTIVE",
+            match: { status: { in: ["OPEN", "LIVE", "CLOSED"] } },
+          },
+        });
+        if (activeBets > 0) {
+          throw new Error(
+            `Player has ${activeBets} active unsettled bet(s). Close and settle/void those matches before payout.`
+          );
+        }
 
         const amount = -current.chips;
         const updatedCount = await tx.user.updateMany({

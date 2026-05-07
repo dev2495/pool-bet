@@ -10,8 +10,8 @@ const Body = z.object({
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-// Open or re-open a single match. With immediate=true, the scheduled
-// one-hour window is overridden and bets can start right away.
+// Open or re-open a single match with odds hidden. With immediate=true, the
+// scheduled one-hour window is overridden and bets can start right away.
 export async function POST(req: NextRequest, ctx: RouteCtx) {
   return handle(async () => {
     await requireAdmin();
@@ -26,10 +26,13 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
     if (m.status === "SETTLED" || m.status === "VOID") {
       return err("Finalised matches cannot be re-opened", 400);
     }
-    if (m.status === "OPEN") return ok({ match: m });
+    if (m.status === "LIVE") {
+      return err("Match is already live. Close or void it when betting should stop.", 400);
+    }
     if (m.session.status !== "OPEN" && m.session.status !== "LIVE") {
       return err("Open the session before opening a match", 400);
     }
+    if (m.status === "OPEN" && !body.immediate) return ok({ match: m });
 
     const updated = await prisma.match.update({
       where: { id: m.id },

@@ -192,6 +192,17 @@ export default function AdminSessionDetail() {
     refresh();
   }
 
+  async function liveMatch(mid: string) {
+    if (!confirm("Go live for this match? Odds and pool totals become visible for this match only.")) return;
+    const r = await fetch(`/api/admin/matches/${mid}/live`, { method: "POST" });
+    const j = await r.json();
+    if (!j.ok) {
+      alert(j.error);
+      return;
+    }
+    refresh();
+  }
+
   async function settleMatch(mid: string, winningOutcomeId: string) {
     if (!confirm("Settle this match? Payouts run from the pool right now.")) return;
     const r = await fetch(`/api/admin/matches/${mid}/settle`, {
@@ -242,8 +253,9 @@ export default function AdminSessionDetail() {
 
   const s = data.session;
   const canOpen = s.status === "DRAFT";
-  const canGoLive = s.status === "OPEN";
-  const acceptingMatches = data.matches.filter((m) => m.status === "PENDING" || m.status === "OPEN");
+  const acceptingMatches = data.matches.filter(
+    (m) => m.status === "PENDING" || m.status === "OPEN" || m.status === "LIVE"
+  );
   const unresolvedMatches = data.matches.filter((m) => m.status !== "SETTLED" && m.status !== "VOID");
   const canClose = (s.status === "OPEN" || s.status === "LIVE") && acceptingMatches.length === 0;
   const canSettle = s.status === "CLOSED" && unresolvedMatches.length === 0;
@@ -257,13 +269,15 @@ export default function AdminSessionDetail() {
       <main className="page-shell app-fade-in">
         <header className="workspace-head">
           <div>
-            <div className="label">Session control room</div>
+            <div className="label">Match group control room</div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{s.name}</h1>
-              <StatusPill status={s.status} />
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-muted shadow-sm">
+                Group container
+              </span>
             </div>
             <p className="mt-1 text-sm leading-6 text-muted">
-              Run the round, watch pools, choose winners, and confirm player ledger payouts.
+              This group only keeps matches together. Open, go live, close, void, and settle each match below.
             </p>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -291,23 +305,20 @@ export default function AdminSessionDetail() {
 
         <section className="card grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <button className={canOpen ? "btn-primary" : "btn"} disabled={!canOpen} onClick={() => transition("open")}>
-            1. Open
-          </button>
-          <button className={canGoLive ? "btn-primary" : "btn"} disabled={!canGoLive} onClick={() => transition("live")}>
-            2. Reveal odds
+            Open group
           </button>
           <button className="btn" disabled={!canClose} onClick={() => transition("close")}>
-            3. Close session
+            Close group
           </button>
           <button className={canSettle ? "btn-primary" : "btn"} disabled={!canSettle} onClick={() => transition("settle")}>
-            4. Settle session
+            Settle group
           </button>
           <p className="col-span-2 mt-2 w-full text-xs leading-5 text-muted">
-            Session OPEN accepts match bets on each match schedule. LIVE only reveals odds. Close and settle the
-            whole session after every match has been manually closed and settled or voided.
+            The group is not the betting switch. Every match follows: Open hidden → Go live → Close match → Winner/void.
+            Player payouts are blocked only when that player still has active unsettled bets.
             {acceptingMatches.length > 0 && (
               <span className="block font-bold text-warn">
-                {acceptingMatches.length} match(es) are still open or scheduled, so session close is locked.
+                {acceptingMatches.length} match(es) are still accepting bets or scheduled, so group close is locked.
               </span>
             )}
           </p>
@@ -508,6 +519,16 @@ export default function AdminSessionDetail() {
                             })}
                           </span>
                         )}
+                        {m.status === "OPEN" && (
+                          <span className="rounded-full bg-panel2 px-2 py-1 text-muted">
+                            odds hidden
+                          </span>
+                        )}
+                        {m.status === "LIVE" && (
+                          <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">
+                            odds visible
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -597,20 +618,32 @@ export default function AdminSessionDetail() {
                   <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:items-center sm:gap-1">
                     {m.status === "PENDING" && (
                       <button className="btn-primary" onClick={() => openMatch(m.id, "Open betting")}>
-                        Open now
+                        Open hidden
+                      </button>
+                    )}
+                    {m.status === "OPEN" &&
+                      m.bettingOpensAt &&
+                      new Date(m.bettingOpensAt).getTime() > Date.now() && (
+                        <button className="btn-primary" onClick={() => openMatch(m.id, "Open betting")}>
+                          Open now
+                        </button>
+                      )}
+                    {m.status === "OPEN" && (
+                      <button className="btn-primary" onClick={() => liveMatch(m.id)}>
+                        Go live
                       </button>
                     )}
                     {m.status === "CLOSED" && !m.winningOutcomeId && (
                       <button className="btn" onClick={() => openMatch(m.id, "Re-open betting")}>
-                        Re-open
+                        Re-open hidden
                       </button>
                     )}
-                    {m.status === "OPEN" && (
+                    {(m.status === "OPEN" || m.status === "LIVE") && (
                       <button className="btn" onClick={() => closeMatch(m.id)}>
                         Close match
                       </button>
                     )}
-                    {(m.status === "OPEN" || m.status === "CLOSED") && (
+                    {(m.status === "OPEN" || m.status === "LIVE" || m.status === "CLOSED") && (
                       <button className="btn-danger" onClick={() => voidMatchProper(m.id)}>
                         Void & refund
                       </button>

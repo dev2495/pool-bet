@@ -123,15 +123,12 @@ export default function PlayPage() {
           <section key={s.id} className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-bold tracking-tight">{s.name}</h2>
-              <StatusPill status={s.status} />
+              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-muted shadow-sm">
+                Match group
+              </span>
               <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-muted shadow-sm">
                 Rake {(s.rakeBps / 100).toFixed(2)}%
               </span>
-              {s.status === "OPEN" && (
-                <span className="rounded-full bg-warn/10 px-2 py-1 text-xs font-semibold text-warn">
-                  Odds hidden until live
-                </span>
-              )}
             </div>
 
             {s.matches.length === 0 && <p className="text-muted text-sm">No matches yet.</p>}
@@ -162,7 +159,7 @@ export default function PlayPage() {
                       const bettingLocked =
                         !!m.bettingOpensAt && new Date(m.bettingOpensAt).getTime() > Date.now();
                       const canBet =
-                        m.status === "OPEN" &&
+                        (m.status === "OPEN" || m.status === "LIVE") &&
                         !bettingLocked &&
                         (s.status === "OPEN" || s.status === "LIVE");
                       return (

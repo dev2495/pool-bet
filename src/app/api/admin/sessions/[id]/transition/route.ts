@@ -53,7 +53,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
     if (action === "close") {
       if (s.status !== "OPEN" && s.status !== "LIVE")
         return err("Session cannot be closed from this state", 400);
-      const acceptingMatches = s.matches.filter((m) => m.status === "PENDING" || m.status === "OPEN");
+      const acceptingMatches = s.matches.filter(
+        (m) => m.status === "PENDING" || m.status === "OPEN" || m.status === "LIVE"
+      );
       if (acceptingMatches.length > 0) {
         return err(
           `Close each match manually first. ${acceptingMatches.length} match(es) are still open or scheduled.`,

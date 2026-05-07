@@ -30,13 +30,8 @@ model User {
 }
 
 // -------------------- Sessions --------------------
-// A "session" groups several matches into one event/night.
-// Status drives WHETHER ODDS ARE VISIBLE to players:
-//   DRAFT  -> admin building it; players cannot see it.
-//   OPEN   -> players can place bets; ODDS ARE HIDDEN.
-//   LIVE   -> bets continue, ODDS ARE VISIBLE and update with every bet.
-//   CLOSED -> no more bets.
-//   SETTLED-> all matches resolved, payouts done.
+// A "session" is only a match group/container, such as "IPL remaining matches".
+// Betting state and odds visibility are controlled by each Match.
 enum SessionStatus {
   DRAFT
   OPEN
@@ -61,8 +56,9 @@ model Session {
 
 // -------------------- Matches --------------------
 enum MatchStatus {
-  PENDING   // belongs to a DRAFT session, not yet accepting bets
-  OPEN      // bets accepted
+  PENDING   // not yet accepting bets
+  OPEN      // bets accepted, odds hidden from players
+  LIVE      // bets accepted, odds visible to players
   CLOSED    // bets locked, awaiting settlement
   SETTLED   // winner picked, payouts done
   VOID      // cancelled, all stakes refunded

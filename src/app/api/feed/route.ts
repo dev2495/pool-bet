@@ -5,10 +5,9 @@ import { computeOdds, type MatchView } from "@/lib/odds";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/feed — main player feed. Returns the active session(s) with matches
-// and outcomes. Odds are ONLY exposed when the session status is LIVE; for an
-// OPEN session we only show the outcome labels (no pool sizes / no odds), so
-// players can place "blind" bets.
+// GET /api/feed — main player feed. Returns active match groups with matches
+// and outcomes. Odds are controlled per match: OPEN hides odds, LIVE/CLOSED/
+// SETTLED reveal odds and pool totals.
 export async function GET() {
   return handle(async () => {
     const sess = await getSession();
@@ -45,7 +44,6 @@ export async function GET() {
     }
 
     const view = sessions.map((s) => {
-      const oddsHidden = s.status === "OPEN";
       return {
         id: s.id,
         name: s.name,
@@ -56,6 +54,7 @@ export async function GET() {
         settledAt: s.settledAt,
         matches: s.matches.map((m) => {
           const odds: MatchView = computeOdds(m.outcomes, s.rakeBps);
+          const oddsHidden = m.status === "OPEN" || m.status === "PENDING";
           return {
             id: m.id,
             name: m.name,
@@ -68,7 +67,7 @@ export async function GET() {
             awayCode: m.awayCode,
             winningOutcomeId: m.winningOutcomeId,
             betCount: m._count.bets,
-            // Hide pool sizes and odds when session is OPEN (pre-reveal).
+            // Hide pool sizes and odds while this match is in hidden-open mode.
             outcomes: odds.outcomes.map((o) => ({
               id: o.id,
               label: o.label,
