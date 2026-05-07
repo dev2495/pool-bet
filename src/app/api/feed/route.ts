@@ -27,7 +27,7 @@ export async function GET() {
       take: 5,
     });
 
-    // If user signed in, fetch their bets to highlight in the UI.
+    // If user signed in, fetch their active bets to highlight and build current exposure.
     const myBetsByMatch: Record<string, { outcomeId: string; stake: number }[]> = {};
     let me: { id: string; name: string; chips: number } | null = null;
     if (sess?.kind === "user") {
@@ -35,7 +35,11 @@ export async function GET() {
       if (u) {
         me = { id: u.id, name: u.name, chips: u.chips };
         const bets = await prisma.bet.findMany({
-          where: { userId: u.id, match: { sessionId: { in: sessions.map((s) => s.id) } } },
+          where: {
+            userId: u.id,
+            status: "ACTIVE",
+            match: { sessionId: { in: sessions.map((s) => s.id) } },
+          },
         });
         for (const b of bets) {
           (myBetsByMatch[b.matchId] ||= []).push({ outcomeId: b.outcomeId, stake: b.stake });
@@ -55,6 +59,8 @@ export async function GET() {
         matches: s.matches.map((m) => {
           const odds: MatchView = computeOdds(m.outcomes, s.rakeBps);
           const oddsHidden = m.status === "OPEN" || m.status === "PENDING";
+          const myBets = myBetsByMatch[m.id] || [];
+          const myTotalStake = myBets.reduce((sum, b) => sum + b.stake, 0);
           return {
             id: m.id,
             name: m.name,
@@ -77,7 +83,26 @@ export async function GET() {
               share: oddsHidden ? null : o.share,
             })),
             totalPool: oddsHidden ? null : odds.totalPool,
-            myBets: myBetsByMatch[m.id] || [],
+            myBets,
+            myBook: {
+              totalStake: myTotalStake,
+              rows: odds.outcomes.map((o) => {
+                const stakeOnOutcome = myBets
+                  .filter((b) => b.outcomeId === o.id)
+                  .reduce((sum, b) => sum + b.stake, 0);
+                const grossReturn =
+                  !oddsHidden && o.oddsDecimal != null
+                    ? Math.floor(stakeOnOutcome * o.oddsDecimal)
+                    : null;
+                return {
+                  outcomeId: o.id,
+                  label: o.label,
+                  stake: stakeOnOutcome,
+                  grossReturn,
+                  net: grossReturn == null ? null : grossReturn - myTotalStake,
+                };
+              }),
+            },
           };
         }),
       };

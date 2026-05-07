@@ -27,6 +27,16 @@ type Match = {
   totalPool: number | null;
   outcomes: Outcome[];
   myBets: { outcomeId: string; stake: number }[];
+  myBook: {
+    totalStake: number;
+    rows: {
+      outcomeId: string;
+      label: string;
+      stake: number;
+      grossReturn: number | null;
+      net: number | null;
+    }[];
+  };
 };
 type Sess = {
   id: string;
@@ -213,6 +223,8 @@ export default function PlayPage() {
                     })}
                   </div>
 
+                  {m.myBook.totalStake > 0 && <MatchBook book={m.myBook} />}
+
                   <footer className="flex items-center justify-between gap-3 border-t border-line/70 pt-3 text-xs text-muted">
                     <span>
                       {m.betCount} bets total
@@ -245,15 +257,65 @@ export default function PlayPage() {
               for (const m of s.matches)
                 if (m.id === picking.matchId) {
                   const o = m.outcomes.find((x) => x.id === picking.outcomeId);
+                  const currentStakeOnMatch = m.myBets.reduce((sum, b) => sum + b.stake, 0);
                   return {
                     match: m.name,
                     outcome: o?.label || "?",
                     odds: o?.oddsDecimal ?? null,
+                    rakeBps: s.rakeBps,
+                    totalPool: m.totalPool,
+                    outcomePool: o?.poolChips ?? null,
+                    currentStakeOnMatch,
                   };
                 }
             return null;
           })()}
         />
+      )}
+    </div>
+  );
+}
+
+function MatchBook({
+  book,
+}: {
+  book: Match["myBook"];
+}) {
+  return (
+    <div className="rounded-md border border-line/70 bg-panel2 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="label mb-0">Your book</div>
+        <span className="text-xs font-semibold text-muted">
+          staked {book.totalStake.toLocaleString()}
+        </span>
+      </div>
+      <div className="grid gap-1.5">
+        {book.rows.map((row) => (
+          <div key={row.outcomeId} className="flex items-center justify-between gap-3 text-xs">
+            <div className="min-w-0">
+              <div className="truncate font-semibold text-ink">{row.label}</div>
+              <div className="text-muted">on this side {row.stake.toLocaleString()}</div>
+            </div>
+            {row.net == null ? (
+              <div className="text-right font-semibold text-muted">hidden</div>
+            ) : (
+              <div className="text-right">
+                <div className={"font-mono font-bold " + (row.net >= 0 ? "text-win" : "text-loss")}>
+                  {row.net >= 0 ? "+" : ""}
+                  {row.net.toLocaleString()}
+                </div>
+                <div className="text-[11px] text-muted">
+                  return {row.grossReturn?.toLocaleString() ?? 0}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {book.rows.some((row) => row.net == null) && (
+        <div className="mt-2 text-[11px] text-muted">
+          Net book appears when admin makes this match live.
+        </div>
       )}
     </div>
   );
@@ -364,10 +426,31 @@ function BetModal({
   onPlace: () => void;
   placing: boolean;
   error: string | null;
-  context: { match: string; outcome: string; odds: number | null } | null;
+  context: {
+    match: string;
+    outcome: string;
+    odds: number | null;
+    rakeBps: number;
+    totalPool: number | null;
+    outcomePool: number | null;
+    currentStakeOnMatch: number;
+  } | null;
 }) {
   const projected =
     context?.odds && stake > 0 ? Math.floor(stake * context.odds) : null;
+  const projectedAfterBet =
+    context?.totalPool != null && context.outcomePool != null && stake >= 50
+      ? projectBetReturn({
+          stake,
+          totalPool: context.totalPool,
+          outcomePool: context.outcomePool,
+          rakeBps: context.rakeBps,
+        })
+      : null;
+  const projectedNet =
+    projectedAfterBet == null || !context
+      ? null
+      : projectedAfterBet - context.currentStakeOnMatch - stake;
   return (
     <div className="fixed inset-0 z-40 flex items-end bg-ink/28 backdrop-blur-sm sm:grid sm:place-items-center sm:p-4" onClick={onClose}>
       <div className="mobile-sheet w-full space-y-4 sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -407,13 +490,23 @@ function BetModal({
             </button>
           </div>
         </div>
-        {projected != null && (
+        {projectedAfterBet != null ? (
           <div className="text-sm text-muted">
-            If this outcome wins right now, you would receive about{" "}
-            <span className="text-win font-semibold">{projected.toLocaleString()}</span> chips.
-            Odds drift as more bets come in.
+            If this outcome wins after this bet, this stake would return about{" "}
+            <span className="text-win font-semibold">{projectedAfterBet.toLocaleString()}</span> chips.
+            Your match net would be{" "}
+            <span className={(projectedNet ?? 0) >= 0 ? "font-semibold text-win" : "font-semibold text-loss"}>
+              {(projectedNet ?? 0) >= 0 ? "+" : ""}
+              {(projectedNet ?? 0).toLocaleString()}
+            </span>
+            .
           </div>
-        )}
+        ) : projected != null ? (
+          <div className="text-sm text-muted">
+            If this outcome wins right now, this stake would return about{" "}
+            <span className="text-win font-semibold">{projected.toLocaleString()}</span> chips.
+          </div>
+        ) : null}
         {context?.odds == null && (
           <div className="text-xs text-warn">
             Odds are hidden until admin starts the round — you&apos;re placing a blind bet.
@@ -442,4 +535,22 @@ function BetModal({
       </div>
     </div>
   );
+}
+
+function projectBetReturn({
+  stake,
+  totalPool,
+  outcomePool,
+  rakeBps,
+}: {
+  stake: number;
+  totalPool: number;
+  outcomePool: number;
+  rakeBps: number;
+}) {
+  const nextTotal = totalPool + stake;
+  const nextOutcomePool = outcomePool + stake;
+  if (nextOutcomePool <= 0) return null;
+  const rake = Math.max(0, Math.min(9999, rakeBps)) / 10000;
+  return Math.floor((stake * nextTotal * (1 - rake)) / nextOutcomePool);
 }
