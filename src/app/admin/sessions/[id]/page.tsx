@@ -177,6 +177,21 @@ export default function AdminSessionDetail() {
     refresh();
   }
 
+  async function openMatch(mid: string, label: string) {
+    if (!confirm(`${label} for this match now? This overrides the scheduled betting window for that match only.`)) return;
+    const r = await fetch(`/api/admin/matches/${mid}/open`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ immediate: true }),
+    });
+    const j = await r.json();
+    if (!j.ok) {
+      alert(j.error);
+      return;
+    }
+    refresh();
+  }
+
   async function settleMatch(mid: string, winningOutcomeId: string) {
     if (!confirm("Settle this match? Payouts run from the pool right now.")) return;
     const r = await fetch(`/api/admin/matches/${mid}/settle`, {
@@ -228,10 +243,12 @@ export default function AdminSessionDetail() {
   const s = data.session;
   const canOpen = s.status === "DRAFT";
   const canGoLive = s.status === "OPEN";
-  const canClose = s.status === "OPEN" || s.status === "LIVE";
-  const canSettle = s.status === "CLOSED";
+  const acceptingMatches = data.matches.filter((m) => m.status === "PENDING" || m.status === "OPEN");
+  const unresolvedMatches = data.matches.filter((m) => m.status !== "SETTLED" && m.status !== "VOID");
+  const canClose = (s.status === "OPEN" || s.status === "LIVE") && acceptingMatches.length === 0;
+  const canSettle = s.status === "CLOSED" && unresolvedMatches.length === 0;
   const canEditRake = s.status === "DRAFT" || s.status === "OPEN";
-  const canAddMatches = s.status === "DRAFT" || s.status === "OPEN";
+  const canAddMatches = s.status === "DRAFT" || s.status === "OPEN" || s.status === "LIVE";
   const matchNames = new Map(data.matches.map((m) => [m.id, m.name]));
 
   return (
@@ -277,17 +294,22 @@ export default function AdminSessionDetail() {
             1. Open
           </button>
           <button className={canGoLive ? "btn-primary" : "btn"} disabled={!canGoLive} onClick={() => transition("live")}>
-            2. Go live
+            2. Reveal odds
           </button>
           <button className="btn" disabled={!canClose} onClick={() => transition("close")}>
-            3. Close betting
+            3. Close session
           </button>
           <button className={canSettle ? "btn-primary" : "btn"} disabled={!canSettle} onClick={() => transition("settle")}>
             4. Settle session
           </button>
           <p className="col-span-2 mt-2 w-full text-xs leading-5 text-muted">
-            DRAFT → OPEN → LIVE → CLOSED → SETTLED. While OPEN, players can place bets but cannot
-            see odds. Once you go LIVE, odds become visible and update with every new bet.
+            Session OPEN accepts match bets on each match schedule. LIVE only reveals odds. Close and settle the
+            whole session after every match has been manually closed and settled or voided.
+            {acceptingMatches.length > 0 && (
+              <span className="block font-bold text-warn">
+                {acceptingMatches.length} match(es) are still open or scheduled, so session close is locked.
+              </span>
+            )}
           </p>
         </section>
 
@@ -436,7 +458,7 @@ export default function AdminSessionDetail() {
             <div>
               <h3 className="font-semibold">Matches ({data.matches.length})</h3>
               <p className="text-xs text-muted">
-                Settlement writes player ledger entries immediately after winner confirmation.
+                Each match has its own betting window, manual close, void, and settlement ledger.
               </p>
             </div>
             <div className="text-sm text-muted">
@@ -515,7 +537,7 @@ export default function AdminSessionDetail() {
                         <div className="text-right text-sm font-mono tabular-nums">
                           {o.oddsDecimal != null ? `×${o.oddsDecimal.toFixed(2)}` : "—"}
                         </div>
-                        {(m.status === "OPEN" || m.status === "CLOSED") && !isWinner && (
+                        {m.status === "CLOSED" && !isWinner && (
                           <button
                             className="btn"
                             onClick={() => settleMatch(m.id, o.id)}
@@ -573,9 +595,19 @@ export default function AdminSessionDetail() {
                     {m.betCount} bets · pool {m.totalPool.toLocaleString()}
                   </span>
                   <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:items-center sm:gap-1">
+                    {m.status === "PENDING" && (
+                      <button className="btn-primary" onClick={() => openMatch(m.id, "Open betting")}>
+                        Open now
+                      </button>
+                    )}
+                    {m.status === "CLOSED" && !m.winningOutcomeId && (
+                      <button className="btn" onClick={() => openMatch(m.id, "Re-open betting")}>
+                        Re-open
+                      </button>
+                    )}
                     {m.status === "OPEN" && (
                       <button className="btn" onClick={() => closeMatch(m.id)}>
-                        Close
+                        Close match
                       </button>
                     )}
                     {(m.status === "OPEN" || m.status === "CLOSED") && (
