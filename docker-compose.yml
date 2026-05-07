@@ -1,20 +1,34 @@
 services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://poolbet:${POSTGRES_PASSWORD:-poolbet}@db:5432/poolbet?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-before-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-devarsh}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123456}
+    ports:
+      - "3000:3000"
+
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: poolbet
-      POSTGRES_PASSWORD: poolbet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-poolbet}
       POSTGRES_DB: poolbet
-    ports:
-      - "5432:5432"
     volumes:
       - poolbet_db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U poolbet"]
+      test: ["CMD-SHELL", "pg_isready -U poolbet -d poolbet"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
 volumes:
   poolbet_db:
