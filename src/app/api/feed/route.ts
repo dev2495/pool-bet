@@ -1,0 +1,89 @@
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import { handle, ok } from "@/lib/api";
+import { computeOdds, type MatchView } from "@/lib/odds";
+
+export const dynamic = "force-dynamic";
+
+// GET /api/feed — main player feed. Returns the active session(s) with matches
+// and outcomes. Odds are ONLY exposed when the session status is LIVE; for an
+// OPEN session we only show the outcome labels (no pool sizes / no odds), so
+// players can place "blind" bets.
+export async function GET() {
+  return handle(async () => {
+    const sess = await getSession();
+
+    const sessions = await prisma.session.findMany({
+      where: { status: { in: ["OPEN", "LIVE", "CLOSED", "SETTLED"] } },
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      include: {
+        matches: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            outcomes: { orderBy: { id: "asc" } },
+            _count: { select: { bets: true } },
+          },
+        },
+      },
+      take: 5,
+    });
+
+    // If user signed in, fetch their bets to highlight in the UI.
+    const myBetsByMatch: Record<string, { outcomeId: string; stake: number }[]> = {};
+    let me: { id: string; name: string; chips: number } | null = null;
+    if (sess?.kind === "user") {
+      const u = await prisma.user.findUnique({ where: { id: sess.userId } });
+      if (u) {
+        me = { id: u.id, name: u.name, chips: u.chips };
+        const bets = await prisma.bet.findMany({
+          where: { userId: u.id, match: { sessionId: { in: sessions.map((s) => s.id) } } },
+        });
+        for (const b of bets) {
+          (myBetsByMatch[b.matchId] ||= []).push({ outcomeId: b.outcomeId, stake: b.stake });
+        }
+      }
+    }
+
+    const view = sessions.map((s) => {
+      const oddsHidden = s.status === "OPEN";
+      return {
+        id: s.id,
+        name: s.name,
+        status: s.status,
+        rakeBps: s.rakeBps,
+        liveAt: s.liveAt,
+        closedAt: s.closedAt,
+        settledAt: s.settledAt,
+        matches: s.matches.map((m) => {
+          const odds: MatchView = computeOdds(m.outcomes, s.rakeBps);
+          return {
+            id: m.id,
+            name: m.name,
+            description: m.description,
+            status: m.status,
+            winningOutcomeId: m.winningOutcomeId,
+            betCount: m._count.bets,
+            // Hide pool sizes and odds when session is OPEN (pre-reveal).
+            outcomes: odds.outcomes.map((o) => ({
+              id: o.id,
+              label: o.label,
+              poolChips: oddsHidden ? null : o.poolChips,
+              betCount: oddsHidden ? null : o.betCount,
+              oddsDecimal: oddsHidden ? null : o.oddsDecimal,
+              share: oddsHidden ? null : o.share,
+            })),
+            totalPool: oddsHidden ? null : odds.totalPool,
+            myBets: myBetsByMatch[m.id] || [],
+          };
+        }),
+      };
+    });
+
+    return ok({
+      me,
+      sessions: view,
+      // server time so clients can display "live since…"
+      now: new Date().toISOString(),
+    });
+  });
+}

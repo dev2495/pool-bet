@@ -1,0 +1,176 @@
+// Pool-Bet schema. All monetary values are integer "chips".
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------- Auth --------------------
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// -------------------- Users (players) --------------------
+model User {
+  id         String        @id @default(cuid())
+  name       String
+  phone      String        @unique
+  // Short login code (e.g. "BR4-92K"). Unique. Acts as the only login credential for players.
+  loginCode  String        @unique
+  chips      Int           @default(0)
+  createdAt  DateTime      @default(now())
+  bets       Bet[]
+  ledger     Transaction[]
+}
+
+// -------------------- Sessions --------------------
+// A "session" groups several matches into one event/night.
+// Status drives WHETHER ODDS ARE VISIBLE to players:
+//   DRAFT  -> admin building it; players cannot see it.
+//   OPEN   -> players can place bets; ODDS ARE HIDDEN.
+//   LIVE   -> bets continue, ODDS ARE VISIBLE and update with every bet.
+//   CLOSED -> no more bets.
+//   SETTLED-> all matches resolved, payouts done.
+enum SessionStatus {
+  DRAFT
+  OPEN
+  LIVE
+  CLOSED
+  SETTLED
+}
+
+model Session {
+  id        String        @id @default(cuid())
+  name      String
+  // Rake taken by the house from each match's pool, expressed in basis points (0-9999, 100 = 1%).
+  rakeBps   Int           @default(500)
+  status    SessionStatus @default(DRAFT)
+  createdAt DateTime      @default(now())
+  liveAt    DateTime?
+  closedAt  DateTime?
+  settledAt DateTime?
+  matches   Match[]
+  houseLedger HouseTransaction[]
+}
+
+// -------------------- Matches --------------------
+enum MatchStatus {
+  PENDING   // belongs to a DRAFT session, not yet accepting bets
+  OPEN      // bets accepted
+  CLOSED    // bets locked, awaiting settlement
+  SETTLED   // winner picked, payouts done
+  VOID      // cancelled, all stakes refunded
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  sessionId     String
+  session       Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name          String      // e.g. "Lakers vs Celtics"
+  description   String?     // optional notes
+  status        MatchStatus @default(PENDING)
+  // After settlement, the winning outcome id is stored here.
+  winningOutcomeId String?
+  createdAt     DateTime    @default(now())
+  settledAt     DateTime?
+  outcomes      Outcome[]
+  bets          Bet[]
+  houseLedger   HouseTransaction?
+
+  @@index([sessionId])
+}
+
+model Outcome {
+  id        String  @id @default(cuid())
+  matchId   String
+  match     Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  label     String  // "Team A", "Draw", "Team B" — anything
+  // Cached running totals (for fast odds calc). Authoritative source is Bet rows.
+  poolChips Int     @default(0)
+  betCount  Int     @default(0)
+  bets      Bet[]
+
+  @@index([matchId])
+}
+
+// -------------------- Bets --------------------
+enum BetStatus {
+  ACTIVE
+  WON
+  LOST
+  REFUNDED
+}
+
+model Bet {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  matchId   String
+  match     Match     @relation(fields: [matchId], references: [id])
+  outcomeId String
+  outcome   Outcome   @relation(fields: [outcomeId], references: [id])
+  stake     Int       // chips wagered
+  payout    Int       @default(0) // chips returned (0 if lost; stake+winnings if won; stake if refunded)
+  status    BetStatus @default(ACTIVE)
+  createdAt DateTime  @default(now())
+  settledAt DateTime?
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([outcomeId])
+}
+
+// -------------------- Ledger --------------------
+enum TxnType {
+  PAY_IN      // player bought/received chips from admin
+  PAY_OUT     // player cashed out/settled with admin
+  GRANT       // admin credited chips
+  ADJUST      // admin manual adjustment (+/-)
+  BET_PLACE   // chips deducted to fund a bet
+  BET_WIN     // chips returned for winning bet (stake + winnings)
+  BET_REFUND  // chips returned for void match
+}
+
+enum HouseTxnType {
+  RAKE
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        TxnType
+  amount      Int      // signed: positive = credit, negative = debit
+  balanceAfter Int     // user balance after applying this txn
+  note        String?
+  betId       String?  // link to bet if applicable
+  matchId     String?
+  sessionId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model HouseTransaction {
+  id          String       @id @default(cuid())
+  type        HouseTxnType
+  amount      Int          // chips retained by house from this settled match: pool - player payouts
+  totalPool   Int
+  totalPaid   Int
+  rakeBps     Int
+  note        String?
+  matchId     String?      @unique
+  match       Match?       @relation(fields: [matchId], references: [id])
+  sessionId   String
+  session     Session      @relation(fields: [sessionId], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@index([sessionId])
+}

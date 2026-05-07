@@ -1,0 +1,9 @@
+node_modules
+.next
+.env
+.DS_Store
+*.log
+.git
+.playwright-mcp
+tsconfig.tsbuildinfo
+GO_LIVE_TINYPOD_REPORT.md
